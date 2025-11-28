@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: dijous, 27 de novembre de 2025, 20:35:57
+  Ultima Modificacion: vie 28 nov 2025 12:31:09
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -36,6 +36,10 @@ void at(int r,int c) {
 	move(r,c);
 }
 
+static void _attron() {
+	attron(_atrflg | COLOR_PAIR(_ink+8*_background));
+}
+
 void attr(u1 t,u1 a) {
 	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
 	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
@@ -44,7 +48,7 @@ void attr(u1 t,u1 a) {
 	for(u1 f=0;f<SIZ;f++) if(a & INT[f]) flag|=FLG[f];
 	if(t==ON) _atrflg|=flag;
 	else _atrflg&=~(flag);
-	attron(_atrflg);
+	_attron();
 }
 
 #define CDD 8
@@ -65,7 +69,7 @@ void color(u1 i,u1 b) {
 				coldefs[b]|=fi;
 			}
 		}
-		attron(COLOR_PAIR(i+8*b));
+		_attron();
 	}
 }
 
@@ -91,7 +95,7 @@ void outs(const char* s,...) {
 
 int main() {
 	_cinit();
-	attr(ON,REVERSE);
+	attr(ON,BOLD);
 	color(WHITE,RED);
 	at(10,10);
 	outs("Hola %i",7);
