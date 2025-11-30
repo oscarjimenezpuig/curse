@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: dissabte, 29 de novembre de 2025, 12:16:21
+  Ultima Modificacion: diumenge, 30 de novembre de 2025, 20:27:34
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -16,15 +16,9 @@
 
 //constantes privadas
 
-#define BUFKEYSIZ 5 //numero de teclas que se almacenan
-#define CLKKEYDUR 100 //numero de clocks que aguantara la tecla en el buffer
+#define BUFSIZE 256
 
 //tipos privados
-
-struct _key_s {
-	char chr;
-	clock_t clk;
-};
 
 //variables estaticas
 
@@ -40,27 +34,22 @@ static struct {
 	u1 col : 1;
 	u1 atr : 1;
 	u1 end : 1;
-} _flag={0,0,0,1}; 
+	u1 min : 4;
+} _flag={0,0,0,1,NOECHO|NOCURSOR|NOENTER|NODELAY}; 
 //banderas:
 //cur: cursor, col: color, atr: atributo -> indican si hay cambio
 //end: indica si ha sido finalizado el curses
-struct _key_s _bufkey[BUFKEYSIZ]; //buffer de keys 
-
+//min: guarda las banderas del mode in
+static char _buffer[BUFSIZE]={'\0'};
 
 //privadas
-
-static void __bufkeyini() {
-	struct _key_s* p=_bufkey;
-	while(p!=_bufkey+BUFKEYSIZ) {
-		*p++=(struct _key_s){0,0};
-	}
-}
 
 static void __end() {
 	if(_flag.end==0) {
 		endwin();
 		_flag.end=1;
 	}
+	puts("...and ended"); //dbg
 }
 
 static void _attron() {
@@ -89,22 +78,24 @@ static void _color() {
 #undef CDD
 
 static void _init() {
+	puts("NCURSES started...");//dbg
 	initscr();
-	curs_set(0);
-	raw();
 	noecho();
+	raw();
 	nodelay(stdscr,TRUE);
+	curs_set(0);
+	keypad(stdscr,TRUE);
 	start_color();
 	for(u1 k=BLACK;k<=WHITE;k++) init_pair(k*8,BLACK,k);
 	attron(COLOR_PAIR(BLACK+8*BLACK));
 	atexit(__end);
 	getmaxyx(stdscr,_rows,_columns);
-	__bufkeyini();
 	_flag.end=0;
 }
 
-static void _signal_resize(int sig) {
-	getmaxyx(stdscr,_rows,_columns);
+static chtype _chkpos() {
+	//da las caracteristicas de una posicion de la pantalla
+	return mvinch(_cursor_r,_cursor_c);
 }
 
 //publicas
@@ -115,6 +106,11 @@ void at(int r,int c) {
 		_cursor_c=c;
 		_flag.cur=1;
 	}
+}
+
+void atget(int* r,int* c) {
+	*r=_cursor_r;
+	*c=_cursor_c;
 }
 
 void attr(u1 t,u1 a) {
@@ -130,6 +126,19 @@ void attr(u1 t,u1 a) {
 	}
 }
 
+u1 attrget() {
+	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
+	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
+	const int SIZ=7;
+	chtype ch=_chkpos();
+	int attrs=ch & A_ATTRIBUTES;
+	u1 flag=0;
+	for(u1 k=0;k<SIZ;k++) {
+		if(attrs & FLG[k]) flag|=INT[k];
+	}
+	return flag;
+}
+
 void background(u1 c) {
 	if(_background!=c) {
 		_background=c;
@@ -137,15 +146,38 @@ void background(u1 c) {
 	}
 }
 
+char chrget() {
+	chtype ch=_chkpos();
+	return ch & A_CHARTEXT;
+}
+
 void cls() {
 	at(0,0);
 	do {
-		outc(' ');
+		printc(' ');
 		if(_cursor_c==_columns) {
 			_cursor_r++;
 			_cursor_c=0;
 		}
 	}while(_cursor_r<_rows);
+	_cursor_r=_cursor_c=0;
+}
+
+void colget(u1* i,u1* b) {
+	chtype ch=_chkpos();
+	int pair=PAIR_NUMBER(ch);
+	*i=pair%8;
+	*b=pair/8;
+}
+
+void dimget(int* r,int* c) {
+	*r=_rows;
+	*c=_columns;
+}
+
+
+void inmode(u1 flag) {
+	_flag.min=flag;
 }
 
 void ink(u1 c) {
@@ -155,54 +187,63 @@ void ink(u1 c) {
 	}
 }
 
-u1 inc(char c) {
-	u1 ret=0;
-	if(c) {
-		clock_t clk=clock();
-		struct _key_s* p=_bufkey;
-		while(p!=_bufkey+BUFKEYSIZ) {
-			if(p->clk<=clk) {
-				p->chr=0;
-				p->clk=0;
-			} else if(ret==0 && p->chr==c) ret=1;
-			p++;
-		}
+u1 inkey(char c) {
+	u1 count=0;
+	char* p=_buffer;
+	while(*p!='\0') {
+		if(*p++==c) ++count;
 	}
-	return ret;
+	return count;
 }
 
-void listen() {
-	int ent=getch();
-	if(ent!=ERR) {
-		char chr=(char)ent;
-		clock_t clk=clock();
-		u1 in=0;
-		struct _key_s* p=_bufkey;
-		struct _key_s* f=NULL;
-		while(p!=_bufkey+BUFKEYSIZ) {
-			if(p->chr==chr) {
-				p->clk=clk+CLKKEYDUR;
-				in=1;
-			}
-			if(p->clk<=clk) {
-				if(in==0) {
-					f=p;
-					in=1;
-				} else {
-					p->chr=0;
-					p->clk=0;
-				}
-			}
-			p++;
+#define nfic(A) ((_flag.min & (A))==0)
+
+u1 listen() {
+	if(nfic(NOCURSOR)) curs_set(1);
+	char c=ERR;	
+	char* p=_buffer;
+	u1 end=(nfic(NOENTER) || nfic(NODELAY))?0:1;
+	do {
+		c=getch();
+		if(c!=ERR) {
+			*p++=c;
+			end=(nfic(NOENTER))?0:1;
+			if(c=='\n') end=1;
+			else if(nfic(NOECHO)) printc(c);
+			if(nfic(NOECHO) && c!='\n') printc(c);
 		}
-		if(f) {
-			f->chr=chr;
-			f->clk=clk+CLKKEYDUR;
-		}
-	}
+	}while(!end);
+	*p='\0';
+	if(nfic(NOCURSOR)) curs_set(0);
+	return p-_buffer;
 }
 
-void outc(char c) {
+#undef nfic
+
+void palette(u1 n) {
+	const int COLS[]={COLOR_BLACK,COLOR_RED,COLOR_GREEN,COLOR_YELLOW,COLOR_BLUE,COLOR_MAGENTA,COLOR_CYAN,COLOR_WHITE};
+	const int DIF=125;
+	if(n!=GREYS) {
+		int value=1000;
+		if(n==MEDIUM) value=600;
+		else if(n==LOW) value=200;
+		init_color(COLOR_BLACK,0,0,0);
+		init_color(COLOR_RED,value,0,0);
+		init_color(COLOR_GREEN,0,value,0);
+		init_color(COLOR_YELLOW,value,value,0);
+		init_color(COLOR_BLUE,0,0,value);
+		init_color(COLOR_MAGENTA,value,0,value);
+		init_color(COLOR_CYAN,0,value,value);
+		init_color(COLOR_WHITE,value,value,value);
+	} else for(int k=0;k<8;k++) init_color(COLS[k],DIF*k,DIF*k,DIF*k);
+}
+
+void pause(double s) {
+	clock_t limit=clock()+s*CLOCKS_PER_SEC;
+	while(clock()<limit);
+}
+
+void printc(char c) {
 	if(_flag.cur) {
 		move(_cursor_r,_cursor_c);
 		_flag.cur=0;
@@ -220,67 +261,50 @@ void outc(char c) {
 	move(_cursor_r,_cursor_c);
 }
 
-void outs(const char* s,...) {
+void prints(const char* s,...) {
 	char str[1024];
 	va_list list;
 	va_start(list,s);
 	vsprintf(str,s,list);
 	va_end(list);
 	char* c=str;
-	while(*c!='\0') outc(*c++);
+	while(*c!='\0') printc(*c++);
 }
 
-void palette(u1 n) {
-	const int COLS[]={COLOR_BLACK,COLOR_RED,COLOR_GREEN,COLOR_YELLOW,COLOR_BLUE,COLOR_MAGENTA,COLOR_CYAN,COLOR_WHITE};
-	const int DIF=125;
-	if(n!=GREYS) {
-		int value=1000;
-		if(n==NORMAL) value=600;
-		else if(n==LOW) value=200;
-		init_color(COLOR_BLACK,0,0,0);
-		init_color(COLOR_RED,value,0,0);
-		init_color(COLOR_GREEN,0,value,0);
-		init_color(COLOR_YELLOW,value,value,0);
-		init_color(COLOR_BLUE,0,0,value);
-		init_color(COLOR_MAGENTA,value,0,value);
-		init_color(COLOR_CYAN,0,value,value);
-		init_color(COLOR_WHITE,value,value,value);
-	} else for(int k=0;k<8;k++) init_color(COLS[k],DIF*k,DIF*k,DIF*k);
+void randomize(int s) {
+	unsigned int ss=(s<0)?time(NULL):s;
+	srand(ss);
+}
+
+int rnd(int a,int b) {
+	int max=(a>b)?a:b;
+	int min=(a<b)?a:b;
+	int dif=max-min+1;
+	return min+(rand()%dif);
 }
 
 void show() {
-	refresh();
+	int ar=_rows;
+	int ac=_columns;
+	getmaxyx(stdscr,_rows,_columns);
+	if(ar!=_rows || ac!=_columns) cls();
+	else refresh();
 }
 
-//prueba
-
-#include <stdio.h>
-
-struct {
-	clock_t act;
-	clock_t clk;
-	char chr;
-} save;
+u1 strbuf(u1 l,char* s) {
+	char* pb=_buffer;
+	char* ps=s;
+	while(*pb!='\0' && ps-s<l) {
+		*ps++=*pb++;
+	}
+	*ps='\0';
+	return ps-s;
+}
 
 int main() {
 	_init();
-	palette(BRIGHT);
-	background(WHITE);
-	ink(BLACK);
-	cls();
-	at(10,10);
-	outs("Hola %i",7);
-	refresh();
-	int time=0;
-	while(inc('q')==0) {
-		at(20,20);
-		outs("Time %04i",time++);
-		refresh();
-		listen();
-	}
-	__end();
-	clock_t clk=clock();
-	for(int k=0;k<BUFKEYSIZ;k++) {
-		printf("clock=%li chr=%c clk=%li\n",clk,_bufkey[k].chr,_bufkey[k].clk);
-	}
+	begin();
+	return 0;
 }
+
+
