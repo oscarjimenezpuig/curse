@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: mié 03 dic 2025 11:26:44
+  Ultima Modificacion: dimecres, 3 de desembre de 2025, 20:12:29
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -54,6 +54,11 @@ static void __end() {
 
 static void _attron() {
 	attron(_atrflg | COLOR_PAIR(_ink+8*_background));
+}
+
+static void _attroff() {
+	attroff(A_BOLD|A_UNDERLINE|A_REVERSE|A_BLINK|A_PROTECT|A_INVIS|A_DIM);
+	_atrflg=0;
 }
 
 #define CDD 8
@@ -117,7 +122,8 @@ void attr(u1 f) {
 	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
 	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
 	const int SIZ=7;
-	u1 flag=0;
+	_attroff();
+	int flag=0;
 	if(f!=0) {
 		for(u1 pf=0;f!=0 && pf<SIZ;pf++) {
 			u1 fi=INT[pf];
@@ -127,8 +133,8 @@ void attr(u1 f) {
 			}
 		}
 		_atrflg=flag;
-		_flag.atr=1;
 	}
+	_flag.atr=1;
 }
 
 u1 attrget() {
