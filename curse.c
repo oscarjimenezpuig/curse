@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: diumenge, 30 de novembre de 2025, 20:27:34
+  Ultima Modificacion: mié 03 dic 2025 10:58:20
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -246,7 +246,6 @@ void pause(double s) {
 void printc(char c) {
 	if(_flag.cur) {
 		move(_cursor_r,_cursor_c);
-		_flag.cur=0;
 	}
 	if(_flag.atr) {
 		if(_flag.col) {
@@ -258,7 +257,6 @@ void printc(char c) {
 	}
 	addch(c);
 	_cursor_c++;
-	move(_cursor_r,_cursor_c);
 }
 
 void prints(const char* s,...) {
