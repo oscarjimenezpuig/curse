@@ -94,7 +94,7 @@ u1 inkey(char c);
 //comprueba si el caracter c esta en el buffer (devuelve el numero de veces)
 
 u1 listen();
-//escucha de las teclas y las guarda en el buffer siempre que la salida no sea error
+//escucha de las teclas y las guarda en el buffer siempre que la salida no sea error, devuelve el numero de teclas almacenadas o 0 si no hay pulsacion
 
 void palette(u1 number);
 //define la paleta de colores
