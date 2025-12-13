@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: dissabte, 6 de desembre de 2025, 08:23:10
+  Ultima Modificacion: dissabte, 13 de desembre de 2025, 12:23:41
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -128,16 +128,12 @@ void attr(u1 f) {
 	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
 	const int SIZ=7;
 	_attroff();
-	int flag=0;
-	if(f!=0) {
-		for(u1 pf=0;f!=0 && pf<SIZ;pf++) {
-			u1 fi=INT[pf];
-			if(f & fi) {
-				flag|=FLG[pf];
-				f&=~fi;
-			}
+	for(u1 pf=0;f!=0 && pf<SIZ;pf++) {
+		u1 fi=INT[pf];
+		if(f & fi) {
+			_atrflg|=FLG[pf];
+			f&=~fi;
 		}
-		_atrflg=flag;
 	}
 	_flag.atr=1;
 }

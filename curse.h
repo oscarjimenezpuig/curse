@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.h
   Creado: 27-11-2025
-  Ultima Modificacion: dissabte, 6 de desembre de 2025, 07:34:56
+  Ultima Modificacion: dissabte, 13 de desembre de 2025, 12:22:33
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -15,6 +15,7 @@
 //CONSTANTES
 
 //atributos
+#define NONE 0 //no se aplica nada
 #define BOLD 1 //caracter en resaltado
 #define UNDERLINE 2 //caracter subrayado
 #define REVERSE 4 //caracter inverso
@@ -38,10 +39,6 @@
 #define MAGENTA 5
 #define CYAN 6
 #define WHITE 7
-
-//on/off
-//#define OFF 0
-//#define ON 1
 
 //mode in
 #define NORMAL 0 //No hay echo, no se espera a la introduccion de teclas, no se espera al enter no hay cursor
@@ -94,7 +91,7 @@ u1 inkey(char c);
 //comprueba si el caracter c esta en el buffer (devuelve el numero de veces)
 
 u1 listen();
-//escucha de las teclas y las guarda en el buffer siempre que la salida no sea error, devuelve el numero de teclas almacenadas o 0 si no hay pulsacion
+//escucha de las teclas y las guarda en el buffer siempre que la salida no sea error
 
 void palette(u1 number);
 //define la paleta de colores
