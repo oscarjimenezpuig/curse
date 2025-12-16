@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.h
   Creado: 27-11-2025
-  Ultima Modificacion: dissabte, 13 de desembre de 2025, 12:22:33
+  Ultima Modificacion: mar 16 dic 2025 14:33:39
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -10,9 +10,14 @@
 #ifndef CURSE_H
 #define CURSE_H
 
-#include <stdarg.h>
 
 //CONSTANTES
+
+//palette
+#define BRIGHT 1 //paleta de maximo brillante
+#define MEDIUM 2 //paleta de brillo medio
+#define LOW 3 //paleta de brillo bajo
+#define GREYS 4 //paleta de grises
 
 //atributos
 #define NONE 0 //no se aplica nada
@@ -23,12 +28,6 @@
 #define PROTECT 16 //caracter protegido
 #define INVIS 32 //caracter invisible
 #define DIM 64 //caracter en resaltado medio
-
-//palette
-#define BRIGHT 1 //paleta de maximo brillante
-#define MEDIUM 2 //paleta de brillo medio
-#define LOW 3 //paleta de brillo bajo
-#define GREYS 4 //paleta de grises
 
 //colors
 #define BLACK 0
@@ -47,78 +46,42 @@
 #define ENTER 4// se espera al enter
 #define CURSOR 8 //pone el cursor
 
-//TIPOS
-typedef unsigned char u1;
+//METODOS
 
 //VARIABLES
+//estas variables solo sirven para adquirir los valores, nunca para cambiarlos
+extern int CUR_R; //fila del cursor
+extern int CUR_C; //columna del cursor
+extern int TER_R; //dimension en filas de la terminal
+extern int TER_C; //dimension en columnas de la terminal
 
 //FUNCIONES
 
-void at(int r,int c);
-//situa el cursor en la posicion especificada
+//principales
 
-void atget(int* r,int* c);
-//da la posicion actual del cursor
+//secundarias (acceso mediante metodos)
 
-void attr(u1 attributes);
-//define los atributos
+void cls(int fondo);
+//hace un cls de toda la pantalla en el fondo elegido, coloca los cursores en 0,0
 
-void background(u1 color);
-//establecer color del fondo
-
-u1 chrchk(char* in,char c);
-//comprueba que el caracter c esta en la entrada in (devuelve el numero de veces)
-
-char chrget();
-//da el caracter que se encuentra en la posicion señalada por los cursores
-
-void cls();
-//borra toda la pantalla, se substituye por espacios con el fondo especificado. Hace refresh
-
-void colget(u1* ink,u1* background);
-//devuelve el color de una determinada zona de la pantalla
-
-void dimget(int* rows,int* cols);
-//consigue la dimension del terminal
-
-void inmode(u1 flags);
-//define el inmode poniendo las flags necesarias (NOECHO,NODELAY,NORAW)
-
-void ink(u1 color);
-//establecer color de la tinta
-
-u1 inkey(char c);
+int inkey(char chr);
 //comprueba si el caracter c esta en el buffer (devuelve el numero de veces)
 
-u1 listen();
-//escucha de las teclas y las guarda en el buffer siempre que la salida no sea error
+int listen(int modein_flags);
+//escuchamos el teclado, introduciendo las banderas indicando como queremos que sea la escucha
 
-void palette(u1 number);
-//define la paleta de colores
+void printc(int r,int c,int atributo,int tinta,int fondo,char chr);
+//impresion de un solo caracter
 
-void pause(double seconds);
-//pausa de segundos
-
-void printc(char c);
-//imprime un caracter
-
-void prints(const char* s,...);
-//imprime un string (tipo printf)
-
-void randomize(int seed);
-//introduce la semilla, si es negativa en funcion del tiempo
-
-int rnd(int a,int b);
-//numero aleatorio del intervalo cerrado a,b
+void prints(int r,int c,int atributo,int tinta,int fondo,const char* str,...);
+//impresion de un string en la posicion r,c con atributos y colores
 
 void show();
-//hace el refresh
+//muestra el contenido de la pantalla
 
-u1 strbuf(u1 len,char* str);
-//copia la cadena del buffer en str
+void curses();
+//funcion donde se alojara todo el programa que usa curses
 
-void begin();
-//condiciones iniciales que establecemos
 
 #endif /* CURSE_H */
 

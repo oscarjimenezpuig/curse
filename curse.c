@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: dissabte, 13 de desembre de 2025, 12:23:41
+  Ultima Modificacion: mar 16 dic 2025 14:34:25
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -11,184 +11,84 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <stdarg.h>
+#include <stdbool.h>
 
 #include "curse.h"
 
-//constantes privadas
+//CONSTANTES
+#define BUFSIZE 1024
 
-#define BUFSIZE 256
+//MACROS
+#define TERMDIM getmaxyx(stdscr,TER_R,TER_C)
 
-//tipos privados
+//VARIABLES
 
-//variables estaticas
+//externas
 
-static int _rows=0; //numero de filas de la terminal
-static int _columns=0; //numero de columnas de la terminal
-static int _cursor_r=0; //row del cursor
-static int _cursor_c=0; //column del cursor
-static int _atrflg=0; //bandera de atributos
-static u1 _ink=BLACK; //tinta
-static u1 _background=BLACK; //fondo
-static struct {
-	u1 cur : 1;
-	u1 col : 1;
-	u1 atr : 1;
-	u1 end : 1;
-	u1 min : 4;
-} _flag={0,0,0,1,NORMAL}; 
-//banderas:
-//cur: cursor, col: color, atr: atributo -> indican si hay cambio
-//end: indica si ha sido finalizado el curses
-//min: guarda las banderas del mode in
-static char _buffer[BUFSIZE]={'\0'};
+int CUR_R,CUR_C,TER_R,TER_C;
+
+static bool _flag_end=true;
+
+//estaticas
+static char _buffer[BUFSIZE];
+
+//FUNCIONES
 
 //privadas
 
 static void __end() {
-	if(_flag.end==0) {
+	//final del ncurses
+	if(!_flag_end) {
 		endwin();
-		_flag.end=1;
+		_flag_end=true;
+		printf(" and finished\n");//dbg
 	}
 }
 
 static void __hand_signal(int sig) {
-	endwin();
+	//final en caso de error
+	__end();
 	exit(sig);
 }
 
-static void _attron() {
-	attron(_atrflg | COLOR_PAIR(_ink+8*_background));
-}
-
-static void _attroff() {
-	attroff(A_BOLD|A_UNDERLINE|A_REVERSE|A_BLINK|A_PROTECT|A_INVIS|A_DIM);
-	_atrflg=0;
-}
-
-#define CDD 8
-
-static void _color() {
-	static u1 coldefs[CDD];
-	static u1 inited=0;
-	if(!inited) {
-		u1* p=coldefs;
-		while(p!=coldefs+CDD) *p++=0;
-		inited=1;
-	}
-	if(_ink!=BLACK) {
-		u1 fi=1<<_ink;
-		if((coldefs[_background] & fi)==0) {
-			init_pair(_ink+8*_background,_ink,_background);
-			coldefs[_background]|=fi;
+static void __init_pairs() {
+	for(int t=BLACK;t<=WHITE;t++) {
+		for(int f=BLACK;f<=WHITE;f++) {
+			init_pair(t+8*f+1,t,f);
 		}
 	}
 }
 
-#undef CDD
-
-static void _init() {
-	signal(SIGINT,__hand_signal);
-	signal(SIGSEGV,__hand_signal);
-	initscr();
-	noecho();
-	raw();
-	nodelay(stdscr,TRUE);
-	curs_set(0);
-	keypad(stdscr,TRUE);
-	start_color();
-	for(u1 k=BLACK;k<=WHITE;k++) init_pair(k*8,BLACK,k);
-	attron(COLOR_PAIR(BLACK+8*BLACK));
-	atexit(__end);
-	getmaxyx(stdscr,_rows,_columns);
-	_flag.end=0;
+static void _at(int r,int c) {
+	//coloca el cursor en una determinada posicion
+	TERMDIM;
+	CUR_R=r;
+	CUR_C=c;
 }
 
-static chtype _chkpos() {
-	//da las caracteristicas de una posicion de la pantalla
-	return mvinch(_cursor_r,_cursor_c);
-}
-
-//publicas
-
-void at(int r,int c) {
-	if(_cursor_r!=r || _cursor_c!=c) {
-		_cursor_r=r;
-		_cursor_c=c;
-		_flag.cur=1;
-	}
-}
-
-void atget(int* r,int* c) {
-	*r=_cursor_r;
-	*c=_cursor_c;
-}
-
-void attr(u1 f) {
+static void _atributos(int a,int t,int f) {
+	//conecta los atributos y el color, desconectando los previos
 	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
 	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
-	const int SIZ=7;
-	_attroff();
-	for(u1 pf=0;f!=0 && pf<SIZ;pf++) {
-		u1 fi=INT[pf];
-		if(f & fi) {
-			_atrflg|=FLG[pf];
-			f&=~fi;
-		}
-	}
-	_flag.atr=1;
-}
-
-u1 attrget() {
-	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
-	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
-	const int SIZ=7;
-	chtype ch=_chkpos();
-	int attrs=ch & A_ATTRIBUTES;
-	u1 flag=0;
-	for(u1 k=0;k<SIZ;k++) {
-		if(attrs & FLG[k]) flag|=INT[k];
-	}
-	return flag;
-}
-
-void background(u1 c) {
-	if(_background!=c) {
-		_background=c;
-		_flag.atr=_flag.col=1;
+	const int FCL=7;
+	static int atr=0;
+	static short clp=1;
+	int atrn=0;
+	for(int k=0;k<FCL;k++) {
+		if(a & INT[k]) atrn|=FLG[k];
+	};
+	short colpair=t+8*f+1;
+	if(atrn!=atr || clp!=colpair) {
+		attroff(atr);
+		attron(atrn | COLOR_PAIR(colpair));
+		atr=atrn;
+		clp=colpair;
 	}
 }
 
-char chrget() {
-	chtype ch=_chkpos();
-	return ch & A_CHARTEXT;
-}
-
-void cls() {
-	at(0,0);
-	do {
-		printc(' ');
-		if(_cursor_c==_columns) {
-			_cursor_r++;
-			_cursor_c=0;
-		}
-	}while(_cursor_r<_rows);
-	_cursor_r=_cursor_c=0;
-}
-
-void colget(u1* i,u1* b) {
-	chtype ch=_chkpos();
-	int pair=PAIR_NUMBER(ch);
-	*i=pair%8;
-	*b=pair/8;
-}
-
-void dimget(int* r,int* c) {
-	*r=_rows;
-	*c=_columns;
-}
-
-void inmode(u1 f) {
-	_flag.min=f;
+static void _modein(int f) {
+	//determina el modo de entrada del curses
 	if((f & CURSOR)) curs_set(1);
 	else curs_set(0);
 	if((f & ECHO)) echo();
@@ -198,15 +98,51 @@ void inmode(u1 f) {
 	else raw();
 }
 
-void ink(u1 c) {
-	if(_ink!=c) {
-		_ink=c;
-		_flag.atr=_flag.col=1;
+static bool _prtchr(char c) {
+	if(CUR_R>=0 && CUR_R<TER_R && CUR_C>=0 && CUR_C<TER_C) {
+		move(CUR_R,CUR_C);
+		addch(c);
+		CUR_C++;
+		return true;
 	}
+	return false;
 }
 
-u1 inkey(char c) {
-	u1 count=0;
+static void _init() {
+	//inicio del ncurses
+	signal(SIGINT,__hand_signal);
+	signal(SIGSEGV,__hand_signal);
+	initscr();
+	noecho();
+	raw();
+	nodelay(stdscr,TRUE);
+	curs_set(0);
+	keypad(stdscr,TRUE);
+	start_color();
+	__init_pairs();
+	atexit(__end);
+	_flag_end=false;
+	CUR_R=CUR_C=0;
+	move(0,0);
+	TERMDIM;
+	printf("CURSES inited");
+}
+
+//publicas
+
+void cls(int fondo) {
+	TERMDIM;
+	for(int f=0;f<TER_R;f++) {
+		for(int c=0;c<TER_C;c++) {
+			printc(f,c,0,fondo,fondo,' ');
+		}
+	}
+	CUR_R=CUR_C=0;
+	move(0,0);
+}	
+
+int inkey(char c) {
+	int count=0;
 	char* p=_buffer;
 	while(*p!='\0') {
 		if(*p++==c) ++count;
@@ -214,15 +150,19 @@ u1 inkey(char c) {
 	return count;
 }
 
-
-u1 listen() {
+int listen(int modein) {
+	static int modeflag=0;
+	if(modeflag!=modein) {
+		_modein(modein);
+		modeflag=modein;
+	}
 	char* p=_buffer;
 	char c=0;
-	u1 entmod=(_flag.min & ENTER)?1:0;
+	bool entmod=(modeflag & ENTER)?true:false;
 	do {
 		c=getch();
 		if(c!=ERR) {
-			if(c=='\n' && entmod) entmod=0;
+			if(c=='\n' && entmod) entmod=false;
 			else {
 				*p++=c;
 			}
@@ -232,89 +172,31 @@ u1 listen() {
 	return p-_buffer;
 }
 
-void palette(u1 n) {
-	const int COLS[]={COLOR_BLACK,COLOR_RED,COLOR_GREEN,COLOR_YELLOW,COLOR_BLUE,COLOR_MAGENTA,COLOR_CYAN,COLOR_WHITE};
-	const int DIF=125;
-	if(n!=GREYS) {
-		int value=1000;
-		if(n==MEDIUM) value=600;
-		else if(n==LOW) value=200;
-		init_color(COLOR_BLACK,0,0,0);
-		init_color(COLOR_RED,value,0,0);
-		init_color(COLOR_GREEN,0,value,0);
-		init_color(COLOR_YELLOW,value,value,0);
-		init_color(COLOR_BLUE,0,0,value);
-		init_color(COLOR_MAGENTA,value,0,value);
-		init_color(COLOR_CYAN,0,value,value);
-		init_color(COLOR_WHITE,value,value,value);
-	} else for(int k=0;k<8;k++) init_color(COLS[k],DIF*k,DIF*k,DIF*k);
+
+void printc(int r,int c,int a,int t,int f,char ch) {
+	prints(r,c,a,t,f,"%c",ch);
 }
 
-void pause(double s) {
-	clock_t limit=clock()+s*CLOCKS_PER_SEC;
-	while(clock()<limit);
-}
-
-void printc(char c) {
-	if(_flag.cur) {
-		move(_cursor_r,_cursor_c);
-	}
-	if(_flag.atr) {
-		if(_flag.col) {
-			_color();
-			_flag.col=0;
-		}
-		_attron();
-		_flag.atr=0;
-	}
-	addch(c);
-	_cursor_c++;
-}
-
-void prints(const char* s,...) {
-	char str[1024];
+void prints(int r,int c,int a,int t,int f,const char* s,...) {
 	va_list list;
 	va_start(list,s);
-	vsprintf(str,s,list);
+	vsprintf(_buffer,s,list);
 	va_end(list);
-	char* c=str;
-	while(*c!='\0') printc(*c++);
-}
-
-void randomize(int s) {
-	unsigned int ss=(s<0)?time(NULL):s;
-	srand(ss);
-}
-
-int rnd(int a,int b) {
-	int max=(a>b)?a:b;
-	int min=(a<b)?a:b;
-	int dif=max-min+1;
-	return min+(rand()%dif);
+	char* ptr=_buffer;
+	_at(r,c);
+	_atributos(a,t,f);
+	while(*ptr!='\0' && _prtchr(*ptr++));
 }
 
 void show() {
-	int ar=_rows;
-	int ac=_columns;
-	getmaxyx(stdscr,_rows,_columns);
-	if(ar!=_rows || ac!=_columns) cls();
-	else refresh();
+	refresh();
 }
 
-u1 strbuf(u1 l,char* s) {
-	char* pb=_buffer;
-	char* ps=s;
-	while(*pb!='\0' && ps-s<l) {
-		*ps++=*pb++;
-	}
-	*ps='\0';
-	return ps-s;
-}
+
+
+
 
 int main() {
 	_init();
-	begin();
-	return 0;
+	curses();
 }
-
-
