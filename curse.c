@@ -165,6 +165,8 @@ int listen(int modein) {
 		_modein(modein);
 		modeflag=modein;
 	}
+	LOCATE;
+	__atributos();
 	char* p=_buffer;
 	char c=0;
 	bool entmod=(modeflag & ENTER)?true:false;
