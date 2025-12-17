@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.h
   Creado: 27-11-2025
-  Ultima Modificacion: mar 16 dic 2025 14:33:39
+  Ultima Modificacion: mié 17 dic 2025 11:28:43
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -13,6 +13,8 @@
 
 //CONSTANTES
 
+#define NONE 0 // valor generico para el 0
+
 //palette
 #define BRIGHT 1 //paleta de maximo brillante
 #define MEDIUM 2 //paleta de brillo medio
@@ -20,7 +22,6 @@
 #define GREYS 4 //paleta de grises
 
 //atributos
-#define NONE 0 //no se aplica nada
 #define BOLD 1 //caracter en resaltado
 #define UNDERLINE 2 //caracter subrayado
 #define REVERSE 4 //caracter inverso
@@ -40,20 +41,28 @@
 #define WHITE 7
 
 //mode in
-#define NORMAL 0 //No hay echo, no se espera a la introduccion de teclas, no se espera al enter no hay cursor
 #define ECHO 1 //las teclas se reproducen en pantalla
 #define DELAY 2 //se espera a la introduccion de teclas
 #define ENTER 4// se espera al enter
 #define CURSOR 8 //pone el cursor
 
+#define INKEY NONE //mode generico para pulsacion de teclas
+#define INPUT ECHO|DELAY|ENTER|CURSOR //modo generico para input tradicional
+
 //METODOS
 
 //VARIABLES
-//estas variables solo sirven para adquirir los valores, nunca para cambiarlos
-extern int CUR_R; //fila del cursor
-extern int CUR_C; //columna del cursor
-extern int TER_R; //dimension en filas de la terminal
-extern int TER_C; //dimension en columnas de la terminal
+//variable cambiables
+extern int ROW; //fila del cursor
+extern int COL; //columna del cursor
+extern int ATR; //atributo de impresion (banderas de atributos)
+extern int INK; //tinta
+extern int BKG; //fondo
+
+//variables estaticas
+extern int ROWS; //dimension en filas de la terminal
+extern int COLS; //dimension en columnas de la terminal
+
 
 //FUNCIONES
 
@@ -61,8 +70,11 @@ extern int TER_C; //dimension en columnas de la terminal
 
 //secundarias (acceso mediante metodos)
 
-void cls(int fondo);
+void cls();
 //hace un cls de toda la pantalla en el fondo elegido, coloca los cursores en 0,0
+
+void curses();
+//funcion donde se alojara todo el programa que usa curses
 
 int inkey(char chr);
 //comprueba si el caracter c esta en el buffer (devuelve el numero de veces)
@@ -70,17 +82,17 @@ int inkey(char chr);
 int listen(int modein_flags);
 //escuchamos el teclado, introduciendo las banderas indicando como queremos que sea la escucha
 
-void printc(int r,int c,int atributo,int tinta,int fondo,char chr);
+int posget(char* chr,int* atr,int* ink,int* bkg);
+//da el caracter y atributos de la posicion marcada por los cursores, si no necesitamos un valor, ponemos NONE
+
+void printc(char chr);
 //impresion de un solo caracter
 
-void prints(int r,int c,int atributo,int tinta,int fondo,const char* str,...);
-//impresion de un string en la posicion r,c con atributos y colores
+void prints(const char* str,...);
+//impresion de un string
 
 void show();
 //muestra el contenido de la pantalla
-
-void curses();
-//funcion donde se alojara todo el programa que usa curses
 
 
 #endif /* CURSE_H */
