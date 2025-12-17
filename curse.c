@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.c
   Creado: 27-11-2025
-  Ultima Modificacion: mié 17 dic 2025 11:28:43
+  Ultima Modificacion: mié 17 dic 2025 14:30:11
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -113,6 +113,7 @@ static void _init() {
 	curs_set(0);
 	keypad(stdscr,TRUE);
 	start_color();
+	palette(BRIGHT);
 	__init_pairs();
 	atexit(__end);
 	_ended=false;
@@ -126,27 +127,15 @@ static void _init() {
 
 //publicas
 
-int posget(char* c,int* a,int* i,int* b) {
-	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
-	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
-	const int FCL=7;
-	if(INTERM) {
-		LOCATE;
-		chtype cht=inch();
-		if(c) *c=(cht & A_CHARTEXT);
-		if(a) {
-			int atra=(cht & A_ATTRIBUTES);
-			*a=0;
-			for(int k=0;k<FCL;k++) {
-				if(atra & FLG[k]) *a|=INT[k];
-			}
-		}
-		short pc=(cht & A_COLOR);
-		if(i) *i=(pc-1)%8;
-		if(b) *b=(pc-1)/8;
-		return 1;
+int bufget(int l,char* s) {
+	l=(l>BUFSIZE-1)?BUFSIZE-1:l;
+	char* pb=_buffer;
+	char* ps=s;
+	while(ps-s<l && *pb!='\0') {
+		*ps++=*pb++;
 	}
-	return 0;
+	*ps='\0';
+	return ps-s;
 }
 
 void cls() {
@@ -192,6 +181,58 @@ int listen(int modein) {
 	return p-_buffer;
 }
 
+#define hascmp(A,D) ((((A)&(D))==(D))?1:0)
+
+void palette(int t) {
+	const short COLS[]={COLOR_BLACK,COLOR_RED,COLOR_GREEN,COLOR_YELLOW,COLOR_BLUE,COLOR_MAGENTA,COLOR_CYAN,COLOR_WHITE};
+	const short DIF=142;
+	short red,green,blue;
+	short value=1000;
+	if(t==MEDIUM) value=600;
+	else if(t==LOW) value=200;
+	for(int col=BLACK;col<=WHITE;col++) {
+		if(t==GREYS) {
+			red=green=blue=DIF*col;
+		} else { 
+			red=green=blue=0;
+			if(hascmp(col,RED)) red=value;
+			if(hascmp(col,GREEN)) green=value;
+			if(hascmp(col,BLUE)) blue=value;
+		}
+		init_color(COLS[col],red,green,blue);
+	}
+}
+
+#undef hascmp
+
+void pause(double s) {
+	clock_t limit=clock()+s*CLOCKS_PER_SEC;
+	while(clock()<limit);
+}
+
+int posget(char* c,int* a,int* i,int* b) {
+	const int FLG[]={A_BOLD,A_UNDERLINE,A_REVERSE,A_BLINK,A_PROTECT,A_INVIS,A_DIM};
+	const int INT[]={BOLD,UNDERLINE,REVERSE,BLINK,PROTECT,INVIS,DIM};
+	const int FCL=7;
+	if(INTERM) {
+		LOCATE;
+		chtype cht=inch();
+		if(c) *c=(cht & A_CHARTEXT);
+		if(a) {
+			int atra=(cht & A_ATTRIBUTES);
+			*a=0;
+			for(int k=0;k<FCL;k++) {
+				if(atra & FLG[k]) *a|=INT[k];
+			}
+		}
+		short pc=(cht & A_COLOR);
+		if(i) *i=(pc-1)%8;
+		if(b) *b=(pc-1)/8;
+		return 1;
+	}
+	return 0;
+}
+
 void printc(char ch) {
 	prints("%c",ch);
 }
@@ -207,6 +248,18 @@ void prints(const char* s,...) {
 	while(*ptr!='\0' && _prtchr(*ptr++));
 }
 
+void randomize(int s) {
+	unsigned int ss=(s<0)?time(NULL):s;
+	srand(ss);
+}
+
+int rnd(int a,int b) {
+	int max=(a>b)?a:b;
+	int min=(a<b)?a:b;
+	int dif=max-min+1;
+	return min+(rand()%dif);
+}
+
 void show() {
 	TERMDIM;
 	refresh();
@@ -214,5 +267,5 @@ void show() {
 
 int main() {
 	_init();
-	curses();
+	curse();
 }

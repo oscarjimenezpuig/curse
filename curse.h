@@ -2,7 +2,7 @@
 ============================================================
   Fichero: curse.h
   Creado: 27-11-2025
-  Ultima Modificacion: mié 17 dic 2025 11:28:43
+  Ultima Modificacion: mié 17 dic 2025 14:24:53
   oSCAR jIMENEZ pUIG                                       
 ============================================================
 */
@@ -70,10 +70,13 @@ extern int COLS; //dimension en columnas de la terminal
 
 //secundarias (acceso mediante metodos)
 
+int bufget(int len,char* str);
+//se obtiene lo que hay en el buffer y se coloca en str
+
 void cls();
 //hace un cls de toda la pantalla en el fondo elegido, coloca los cursores en 0,0
 
-void curses();
+void curse();
 //funcion donde se alojara todo el programa que usa curses
 
 int inkey(char chr);
@@ -81,6 +84,12 @@ int inkey(char chr);
 
 int listen(int modein_flags);
 //escuchamos el teclado, introduciendo las banderas indicando como queremos que sea la escucha
+
+void palette(int type);
+//se entra un tipo de paleta 
+
+void pause(double seconds);
+//pausa de segundos
 
 int posget(char* chr,int* atr,int* ink,int* bkg);
 //da el caracter y atributos de la posicion marcada por los cursores, si no necesitamos un valor, ponemos NONE
@@ -90,6 +99,12 @@ void printc(char chr);
 
 void prints(const char* str,...);
 //impresion de un string
+
+void randomize(int seed);
+//introduce la semilla, si es negativa en funcion del tiempo
+
+int rnd(int a,int b);
+//numero aleatorio del intervalo cerrado a,b
 
 void show();
 //muestra el contenido de la pantalla
